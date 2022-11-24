@@ -20,13 +20,14 @@ class DemandAirportPair:
 
 
 class Airport:
-    def __init__(self,name, icao, latitude, longitude, runway_length, population, gdp, hub):
+    def __init__(self,name, icao, latitude, longitude, runway_length, population2020, population2030, gdp, hub):
         self.Name           = name
         self.ICAO           = icao
         self.Lat            = latitude
         self.Long           = longitude
         self.RunwayLength   = runway_length
-        self.Population     = population
+        self.Population2020 = population2020
+        self.Population2030 = population2030
         self.GDP            = gdp        
         self.Hub            = hub
 
@@ -48,7 +49,7 @@ class Aircraft:
 if __name__ == '__main__':
     #=================================================================================================
     # Input excel file with arcs data (sheet1) and commodities data (sheet2)
-    fuel_price = 5.22
+    fuel_price      = 1.43
     AirportPairs    = []
     Aircrafts       = []
     Airports        = []
@@ -69,6 +70,8 @@ if __name__ == '__main__':
     wb = load_workbook("Group_16_Annual_Growth.xlsx", read_only=True)
     List_annual_growth = tuple(wb["Group_16_Annual_growth"].iter_rows())
 
+    annual_growth = float(List_annual_growth[0][0].value)
+
     # origin, destination, distance, demand2020, demand2030
     for i, origin in enumerate(List_demand_forecast_data[1:]):
         for j, destination in enumerate(origin[1:]):
@@ -77,7 +80,7 @@ if __name__ == '__main__':
     
     # name, icao, latitude, longitude, runway_length, population, gdp, hub
     for (name, icao, latitude, longitude, runway_length, population, gdp, hub) in List_airport_info[1:]:
-        new = Airport(name.value, icao.value, latitude.value, longitude.value, int(runway_length.value), int(population.value), gdp.value, int(hub.value))
+        new = Airport(name.value, icao.value, latitude.value, longitude.value, int(runway_length.value), int(population.value), None, gdp.value, int(hub.value))
         Airports.append(new)
 
     for i, origin in enumerate(List_airport_distances[1:]):
@@ -93,15 +96,15 @@ if __name__ == '__main__':
 
     
     X = np.zeros((len(DemandPairs),4))
-    # print(X)
+    
     for i in range(len(DemandPairs)):
         for j in range(4):
             if j == 0:
                 X[i,j] = 1
             elif j == 1:
                 # next(airp for airp in Airports if airp.Name == AirportPairs[m].From).Population
-                X[i,j] = log(next(airp for airp in Airports if airp.ICAO == DemandPairs[i].From).Population*
-                            next(airp for airp in Airports if airp.ICAO == DemandPairs[i].To).Population)  
+                X[i,j] = log(next(airp for airp in Airports if airp.ICAO == DemandPairs[i].From).Population2020*
+                            next(airp for airp in Airports if airp.ICAO == DemandPairs[i].To).Population2020)  
             elif j == 2:
                 X[i,j] = log(next(airp for airp in Airports if airp.ICAO == DemandPairs[i].From).GDP*
                             next(airp for airp in Airports if airp.ICAO == DemandPairs[i].To).GDP)  
@@ -116,15 +119,40 @@ if __name__ == '__main__':
         y[i] = log(DemandPairs[i].Demand2020)
 
     y = np.delete(y, np.where(y < 0)[0], axis=0)
-   
-
 
     solution = np.linalg.lstsq(X,y)[0]
 
-    print("k = ",solution[0])
+    k = solution[0]
+    b1 = solution[1]
+    b2 = solution[2]
+    b3 = solution[3]
+
+    print("k = " ,solution[0])
     print("b1 = ",solution[1])
     print("b2 = ",solution[2])
     print("b3 = ",solution[3])
+
+    for airport in Airports:
+        airport.Population2030 = airport.Population2020*(annual_growth**10)
+
+    for airport_pair in AirportPairs:
+        if airport_pair.From != airport_pair.To:
+            population_term = b1*log(next(airp for airp in Airports if (airp.ICAO == airport_pair.From)).Population2030
+                                                *next(airp for airp in Airports if (airp.ICAO == airport_pair.To)).Population2030)
+            gdp_term = b2*log(next(airp for airp in Airports if (airp.ICAO == airport_pair.From)).GDP
+                                                *next(airp for airp in Airports if (airp.ICAO == airport_pair.To)).GDP)
+            fuel_term = b3*log(fuel_price*airport_pair.Distance)
+
+            airport_pair.Demand2030 = exp(k + population_term + gdp_term + fuel_term)
+           
+            
+    # for pair in AirportPairs:
+    #     print(pair.Demand2030)
+
+
+
+    
+
  
 
     
