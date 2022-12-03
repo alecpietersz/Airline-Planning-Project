@@ -18,7 +18,6 @@ class DemandAirportPair:
         self.To         = destination
         self.Demand2020 = demand2020
 
-
 class Airport:
     def __init__(self,name, icao, latitude, longitude, runway_length, population2020, population2030, gdp, hub):
         self.Name           = name
@@ -153,7 +152,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                                                                 name = 'range'+AirportPairs[m].From+'-'+AirportPairs[m].To+Aircrafts[k].Name)
 
     model.update()
-    model.setParam('TimeLimit', 1 * 60)
+    model.setParam('TimeLimit', 10/60 * 60)
     model.write("FN_Model.lp")
     model.optimize()
 
@@ -170,9 +169,11 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                     print('%s' % c.constrName)
         elif status != GRB.Status.INF_OR_UNBD:
             print('Optimization was stopped with status %d' % status)
-        exit(0)
+        # exit(0)
 
     print
+    
+    
     for m in range(len(AirportPairs)):
         print("")
         if x[AirportPairs[m].From,AirportPairs[m].To].X >0 or w[AirportPairs[m].From,AirportPairs[m].To].X >0:
@@ -277,10 +278,10 @@ if __name__ == '__main__':
     b2 = solution[2]
     b3 = solution[3]
 
-    k = -5.908334491674755
-    b1 = 0.3507381298874774
-    b2 = 0.14095537035529815
-    b3 = -0.25329734075161936
+    # k = -5.908334491674755
+    # b1 = 0.3507381298874774
+    # b2 = 0.14095537035529815
+    # b3 = -0.25329734075161936
 
     print("k = " ,solution[0])
     print("b1 = ",solution[1])
