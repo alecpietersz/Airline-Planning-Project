@@ -129,6 +129,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, Budget):
         exit(0)
 
     print
+    
     for m in range(len(AirportPairs)):
         print("")
         if x[AirportPairs[m].From,AirportPairs[m].To].X >0 or w[AirportPairs[m].From,AirportPairs[m].To].X >0:
