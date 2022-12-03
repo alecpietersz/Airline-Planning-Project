@@ -47,34 +47,37 @@ class Aircraft:
         self.EnergyCost     = energy_cost
 
 
-def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor):
+def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, Routes, Delta, Subseq, Prece):
     
     model = Model("FN")                # LP model (this is an object)
     
-    w = {}                              # Decision Variables (DVs
-    for m in range(len(AirportPairs)):
-        AirPair = AirportPairs[m]
-        if AirPair.Distance > 0:
-            yield_rpk = 5.9*AirPair.Distance**-0.76+0.043
-        else:
-            yield_rpk = 0     
-        w[AirPair.From,AirPair.To] = model.addVar(obj=-yield_rpk*AirPair.Distance*0.9, vtype ="I",
-                                                name = "w"+AirPair.From+'-'+AirPair.To)
+    w = {}
+    for r in range(len(Routes)):
+        for n in range(len(Routes)):                              # Decision Variables (DVs
+            for m in range(len(AirportPairs)):
+                AirPair = AirportPairs[m]
+                if AirPair.Distance > 0:
+                    yield_rpk = 5.9*AirPair.Distance**-0.76+0.043
+                else:
+                    yield_rpk = 0     
+                w[AirPair.From,AirPair.To,r,n] = model.addVar(obj=-yield_rpk*AirPair.Distance*0.9, vtype ="I",
+                                                        name = "w"+AirPair.From+'-'+AirPair.To+'-'+r+'-'+n)
 
-    x = {}                              # Decision Variables (DVs)
-    for m in range(len(AirportPairs)):
-        AirPair = AirportPairs[m]
-        if AirPair.Distance > 0:
-            yield_rpk = 5.9*AirPair.Distance**-0.76+0.043
-        else:
-            yield_rpk = 0 
-        x[AirPair.From,AirPair.To] = model.addVar(obj=-yield_rpk*AirPair.Distance, vtype ="I",
-                                                name = "x"+AirPair.From+'-'+AirPair.To)
-
-    z = {}                              # Decision Variables (DVs)
-    for k in range(len(Aircrafts)):
+    x = {}
+    for r in range(len(Routes)):                              # Decision Variables (DVs)
         for m in range(len(AirportPairs)):
-            AirPair = AirportPairs[m]  
+            AirPair = AirportPairs[m]
+            if AirPair.Distance > 0:
+                yield_rpk = 5.9*AirPair.Distance**-0.76+0.043
+            else:
+                yield_rpk = 0 
+            x[AirPair.From,AirPair.To,r] = model.addVar(obj=-yield_rpk*AirPair.Distance, vtype ="I",
+                                                    name = "x"+AirPair.From+'-'+AirPair.To+'-'+r)
+
+    z = {}
+    for r in range(len(Routes)):                              # Decision Variables (DVs)
+        for k in range(len(Aircrafts)):
+              
             acft = Aircrafts[k]
             gi = next(airp for airp in Airports if airp.ICAO == AirPair.From).Hub
             gj = next(airp for airp in Airports if airp.ICAO == AirPair.To).Hub
@@ -342,17 +345,15 @@ if __name__ == '__main__':
             route_length += leg_distance
             if route_length> max_range:
                 range_exceeded = True
-        if not range_exceeded:
+        if not range_exceeded and len(route)<=4:
             valid_routes.append(route)
 
     routes2 = []
     for route in valid_routes:
         if len(route) > 3:
             routes2.append(route)
+    
 
-    print(valid_routes)
-    print('')
-   
 
     delta = {}
 
@@ -381,10 +382,10 @@ if __name__ == '__main__':
         for a in range(len(route)-1):
             nodes[route[a]] = route[a::-1]
         Prece[r] = nodes
-        
+
     start_time = time()
     # RUN MCF PROBLEM
-    # FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor)
+    # FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, delta, Subseq, Prece)
     
     elapsed_time = time() - start_time
 
