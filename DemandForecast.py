@@ -80,7 +80,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
             gj = next(airp for airp in Airports if airp.ICAO == AirPair.To).Hub
             z[AirPair.From,AirPair.To,k] = model.addVar(obj=((acft.OperatingCost + acft.TimeCost*AirPair.Distance/acft.Speed + 
                                                                 acft.FuelCost*fuel_price/1.5*AirPair.Distance)*(1-(2- gi - gj)*0.3)
-                                                                +energy_price*acft.EnergyCost*AirPair.Distance/acft.Range)*acft.Seats, vtype ="I",
+                                                                +energy_price*acft.EnergyCost*AirPair.Distance/acft.Range), vtype ="I",
                                                     name = "z"+ AirPair.From +'-'+AirPair.To+'-'+acft.Name)
 
     ACk = {}                              # Decision Variables (DVs)
@@ -123,7 +123,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
 
     ACProductivity = {}                       # build 'capacity' constraints
     for k in range(len(Aircrafts)):
-        ACProductivity[k] = model.addConstr(quicksum(((AirportPairs[m].Distance/Aircrafts[k].Speed+Aircrafts[k].TAT*(1+0.5*(1-next(airp for airp in Airports if airp.ICAO == AirPair.To).Hub)))*z[AirportPairs[m].From,AirportPairs[m].To,k]) for m in range(len(AirportPairs))),
+        ACProductivity[k] = model.addConstr(quicksum(((AirportPairs[m].Distance/Aircrafts[k].Speed+Aircrafts[k].TAT*(1+0.5*(1-next(airp for airp in Airports if airp.ICAO == AirportPairs[m].To).Hub)))*z[AirportPairs[m].From,AirportPairs[m].To,k]) for m in range(len(AirportPairs))),
                                                                 '<=', block_time*ACk[k], name = 'ACProductivity'+Aircrafts[k].Name)
 
     Runway = {}
@@ -150,9 +150,10 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                 a = 0
             Range[AirportPairs[m].From,AirportPairs[m].To,k] = model.addConstr(z[AirportPairs[m].From,AirportPairs[m].To,k],
                                                                 '<=', a, 
-                                                                name = 'runway'+AirportPairs[m].From+'-'+AirportPairs[m].To+Aircrafts[k].Name)
+                                                                name = 'range'+AirportPairs[m].From+'-'+AirportPairs[m].To+Aircrafts[k].Name)
 
     model.update()
+    model.setParam('TimeLimit', 1 * 60)
     model.write("FN_Model.lp")
     model.optimize()
 
@@ -181,6 +182,10 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
         for k in range(len(Aircrafts)):
             if z[AirportPairs[m].From,AirportPairs[m].To,k].X >0:
                 print("z"+AirportPairs[m].From+'-'+AirportPairs[m].To+'-'+Aircrafts[k].Name,z[AirportPairs[m].From,AirportPairs[m].To,k].X)
+    
+    for k in range(len(Aircrafts)):
+        if ACk[k].X > 0:
+            print("AC"+Aircrafts[k].Name,ACk[k].X)
 
             
     print
@@ -192,7 +197,7 @@ if __name__ == '__main__':
     #=================================================================================================
     # Input excel file with arcs data (sheet1) and commodities data (sheet2)
     fuel_price      = 1.42  # $/gallon
-    block_time      = 10    # hrs
+    block_time      = 10*7    # hrs
     energy_price    = 0.07  # euro/kWh
     load_factor     = 0.8
     AirportPairs    = []
@@ -200,16 +205,16 @@ if __name__ == '__main__':
     Airports        = []
     DemandPairs     = []
 
-    wb = load_workbook("Aircraft_info copy.xlsx", read_only=True)
+    wb = load_workbook("Aircraft_info.xlsx", read_only=True)
     List_aircraft_info = tuple(wb["Aircraft_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Airport_info copy.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Airport_info.xlsx", read_only=True)
     List_airport_info = tuple(wb["Group_16_Airport_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Demand copy.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Demand.xlsx", read_only=True)
     List_demand_forecast_data = tuple(wb["Group_16_Demand"].iter_rows())
 
-    wb = load_workbook("Group_16_Distances copy.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Distances.xlsx", read_only=True)
     List_airport_distances = tuple(wb["Group_16_Distances"].iter_rows())
 
     wb = load_workbook("Group_16_Annual_Growth.xlsx", read_only=True)
@@ -230,7 +235,7 @@ if __name__ == '__main__':
 
     for i, origin in enumerate(List_airport_distances[1:]):
         for j, destination in enumerate(origin[1:]):
-            new_pair = AirportPair(List_airport_distances[i+1][0].value,List_airport_distances[0][j+1].value,int(List_airport_distances[i+1][j+1].value), None)
+            new_pair = AirportPair(List_airport_distances[i+1][0].value,List_airport_distances[0][j+1].value,(List_airport_distances[i+1][j+1].value), None)
             AirportPairs.append(new_pair)
 
     # for pair in AirportPairs:
@@ -271,6 +276,11 @@ if __name__ == '__main__':
     b1 = solution[1]
     b2 = solution[2]
     b3 = solution[3]
+
+    k = -5.908334491674755
+    b1 = 0.3507381298874774
+    b2 = 0.14095537035529815
+    b3 = -0.25329734075161936
 
     print("k = " ,solution[0])
     print("b1 = ",solution[1])
