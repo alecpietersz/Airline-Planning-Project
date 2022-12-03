@@ -4,6 +4,7 @@ from numpy import *
 from openpyxl import *
 from time import *
 import numpy as np
+import itertools
 
 class AirportPair:
     def __init__(self,origin, destination, distance, demand2030):
@@ -209,16 +210,16 @@ if __name__ == '__main__':
     Airports        = []
     DemandPairs     = []
 
-    wb = load_workbook("Aircraft_info.xlsx", read_only=True)
+    wb = load_workbook("Aircraft_info copy.xlsx", read_only=True)
     List_aircraft_info = tuple(wb["Aircraft_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Airport_info.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Airport_info copy.xlsx", read_only=True)
     List_airport_info = tuple(wb["Group_16_Airport_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Demand.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Demand copy.xlsx", read_only=True)
     List_demand_forecast_data = tuple(wb["Group_16_Demand"].iter_rows())
 
-    wb = load_workbook("Group_16_Distances.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Distances copy.xlsx", read_only=True)
     List_airport_distances = tuple(wb["Group_16_Distances"].iter_rows())
 
     wb = load_workbook("Group_16_Annual_Growth.xlsx", read_only=True)
@@ -281,15 +282,15 @@ if __name__ == '__main__':
     b2 = solution[2]
     b3 = solution[3]
 
-    # k = -5.908334491674755
-    # b1 = 0.3507381298874774
-    # b2 = 0.14095537035529815
-    # b3 = -0.25329734075161936
+    k = -5.908334491674755
+    b1 = 0.3507381298874774
+    b2 = 0.14095537035529815
+    b3 = -0.25329734075161936
 
-    print("k = " ,solution[0])
-    print("b1 = ",solution[1])
-    print("b2 = ",solution[2])
-    print("b3 = ",solution[3])
+    # print("k = " ,solution[0])
+    # print("b1 = ",solution[1])
+    # print("b2 = ",solution[2])
+    # print("b3 = ",solution[3])
 
     for airport in Airports:
         airport.Population2030 = airport.Population2020*(annual_growth**10)
@@ -306,31 +307,86 @@ if __name__ == '__main__':
         else:
             airport_pair.Demand2030 = 0
 
-    for (name, speed, seats, tat, charging, ac_range, runway, lease_cost, op_cost, time_cost, fuel_cost, energy_cost) in List_aircraft_info[1:4]:
+    for (name, speed, seats, tat, charging, ac_range, runway, lease_cost, op_cost, time_cost, fuel_cost, energy_cost) in List_aircraft_info[1:]:
         new = Aircraft(name.value, speed.value, seats.value, tat.value, charging.value, ac_range.value, runway.value, lease_cost.value, op_cost.value, time_cost.value, fuel_cost.value, energy_cost.value)
-
         Aircrafts.append(new)
-           
+
+    max_range = 0
+    for acft in Aircrafts:
+           if acft.Range > max_range:
+            max_range = acft.Range    
+
+    hub = next(airp for airp in Airports if (airp.Hub == 0))
     
-    # for pair in AirportPairs:
-    #     print(vars(pair))
+    s = []
+    for apt in Airports:
+        s.append(apt.ICAO)
+    s.append(hub.ICAO)
 
-    # for pair in Airports:
-    #     print(vars(pair))
+    routes = set()
+    for k in range(1, len(s)+1):
+        for comb in itertools.permutations(s, k):
+                if comb[0] == hub.ICAO and comb[-1] == hub.ICAO and len(comb)>2:                    
+                    routes.add(comb)
 
+    
+    valid_routes = []
+    
+    for route in routes:
+        range_exceeded = False
+        route_length = 0
+        for i in range(len(route)-1):
+            apt1 = route[i]
+            apt2 = route[i+1]
+            leg_distance = next(airppair for airppair in AirportPairs if (airppair.From == apt1 and airppair.To == apt2)).Distance
+            route_length += leg_distance
+            if route_length> max_range:
+                range_exceeded = True
+        if not range_exceeded:
+            valid_routes.append(route)
+
+    routes2 = []
+    for route in valid_routes:
+        if len(route) > 3:
+            routes2.append(route)
+
+    print(valid_routes)
+    print('')
+   
+
+    delta = {}
+
+    for r, route in enumerate(valid_routes):
+        for m in range(len(AirportPairs)):
+            if AirportPairs[m].From in route and AirportPairs[m].To in route: 
+                if route.index(AirportPairs[m].From) < route.index(AirportPairs[m].To) and AirportPairs[m].To != hub.ICAO:
+                    delta[r,AirportPairs[m].From,AirportPairs[m].To] = 1
+                elif AirportPairs[m].To == hub.ICAO and AirportPairs[m].From != hub.ICAO:
+                    delta[r,AirportPairs[m].From,AirportPairs[m].To] = 1
+                else:
+                    delta[r,AirportPairs[m].From,AirportPairs[m].To] = 0
+            else:
+                delta[r,AirportPairs[m].From,AirportPairs[m].To] = 0
+
+    Subseq = {}
+    for r, route in enumerate(valid_routes):
+        nodes = {}
+        for a in range(len(route)-1):
+            nodes[route[a]] = route[a+1:]
+        Subseq[r] = nodes     
+
+    Prece = {}
+    for r, route in enumerate(valid_routes):
+        nodes = {}
+        for a in range(len(route)-1):
+            nodes[route[a]] = route[a::-1]
+        Prece[r] = nodes
+        
     start_time = time()
     # RUN MCF PROBLEM
-    FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor)
+    # FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor)
     
     elapsed_time = time() - start_time
 
     print ("Run Time = ", elapsed_time)
     print ("END")
-
-
-
-    
-
- 
-
-    
