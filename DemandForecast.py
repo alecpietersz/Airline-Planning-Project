@@ -1,5 +1,5 @@
 
-from gurobipy import *
+from gurobipy import Model, quicksum, GRB
 from numpy import *
 from openpyxl import *
 from time import *
