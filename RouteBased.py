@@ -168,7 +168,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
     ACProductivity = {}                       # build 'capacity' constraints
     for k in range(len(Aircrafts)):
         acft = Aircrafts[k]
-        ACProductivity[k] = model.addConstr(quicksum(Routes[r].Distance/acft.Speed+ acft.LTO+  for r in Routes),
+        ACProductivity[k] = model.addConstr(quicksum((Routes[r].Distance/acft.Speed+ acft.LTO* (len(Routes[r].Airports)-1)+ acft.Charging)*z[r,k] for r in Routes),
                                                                 '<=', block_time*ACk[k], name = 'ACProductivity'+Aircrafts[k].Name)
 
     Runway = {}
