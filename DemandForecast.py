@@ -1,4 +1,4 @@
-
+#hello
 from gurobipy import Model, quicksum, GRB
 from numpy import *
 from openpyxl import *
@@ -209,16 +209,16 @@ if __name__ == '__main__':
     Airports        = []
     DemandPairs     = []
 
-    wb = load_workbook("Aircraft_info.xlsx", read_only=True)
+    wb = load_workbook("Aircraft_info copy.xlsx", read_only=True)
     List_aircraft_info = tuple(wb["Aircraft_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Airport_info.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Airport_info copy.xlsx", read_only=True)
     List_airport_info = tuple(wb["Group_16_Airport_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Demand.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Demand copy.xlsx", read_only=True)
     List_demand_forecast_data = tuple(wb["Group_16_Demand"].iter_rows())
 
-    wb = load_workbook("Group_16_Distances.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Distances copy.xlsx", read_only=True)
     List_airport_distances = tuple(wb["Group_16_Distances"].iter_rows())
 
     wb = load_workbook("Group_16_Annual_Growth.xlsx", read_only=True)
@@ -281,10 +281,10 @@ if __name__ == '__main__':
     b2 = solution[2]
     b3 = solution[3]
 
-    # k = -5.908334491674755
-    # b1 = 0.3507381298874774
-    # b2 = 0.14095537035529815
-    # b3 = -0.25329734075161936
+    k = -5.908334491674755
+    b1 = 0.3507381298874774
+    b2 = 0.14095537035529815
+    b3 = -0.25329734075161936
 
     print("k = " ,solution[0])
     print("b1 = ",solution[1])
@@ -319,7 +319,7 @@ if __name__ == '__main__':
     #     print(vars(pair))
 
     start_time = time()
-    # RUN MCF PROBLEM
+    
     FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor)
     
     elapsed_time = time() - start_time
