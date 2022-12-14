@@ -15,7 +15,7 @@ Minimize
    + 2299.530685660759 zLIMF-LIBD-Regional_Turboprop
    + 782.3647664559321 zLIBD-LIRA-Regional_Turboprop
    + 2299.530685660759 zLIBD-LIMF-Regional_Turboprop
-   + 300 zLIBD-LIBD-Regional_Turboprop + 1500 ACRegional_Turboprop
+   + 300 zLIBD-LIBD-Regional_Turboprop + 15000 ACRegional_Turboprop
 Subject To
  qnorLIRA-LIRA: wLIRA-LIRA + xLIRA-LIRA <= 0
  qnorLIRA-LIMF: wLIRA-LIMF + xLIRA-LIMF <= 110.8216688451043
