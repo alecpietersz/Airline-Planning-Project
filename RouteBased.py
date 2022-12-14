@@ -57,7 +57,7 @@ class Route:
         self.Legs       = legs
 
 # AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1
-def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, Routes, Routes2, Routes1):
+def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, Routes, Routes2, Routes1, solve):
     
     model = Model("FN")                # LP model (this is an object)
     
@@ -70,8 +70,8 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                     yield_rpk = 5.9*AirPair.Distance**-0.76+0.043
                 else:
                     yield_rpk = 0     
-                w[AirPair.From,AirPair.To,r,n] = model.addVar(obj=-10*yield_rpk*AirPair.Distance*0.9, vtype ="I",
-                                                        name = "w"+AirPair.From+'-'+AirPair.To+'-r'+str(Routes[r].ID)+'-n'+str(Routes[n].ID))
+                w[AirPair.From,AirPair.To,r,n] = model.addVar(obj=-yield_rpk*AirPair.Distance*0.9, vtype ="I",
+                                                        name = ("w"+AirPair.From+'-'+AirPair.To+'-r'+str(Routes[r].ID)+'-n'+str(Routes[n].ID)).replace(" ", ""))
 
     x = {}
     for r in range(len(Routes)):                              # Decision Variables (DVs)
@@ -81,8 +81,8 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                 yield_rpk = 5.9*AirPair.Distance**-0.76+0.043
             else:
                 yield_rpk = 0 
-            x[AirPair.From,AirPair.To,r] = model.addVar(obj=-10*yield_rpk*AirPair.Distance, vtype ="I",
-                                                    name = "x"+AirPair.From+'-'+AirPair.To+'-r'+str(Routes[r].ID))
+            x[AirPair.From,AirPair.To,r] = model.addVar(obj=-yield_rpk*AirPair.Distance, vtype ="I",
+                                                    name = ("x"+AirPair.From+'-'+AirPair.To+'-r'+str(Routes[r].ID)).replace(" ", ""))
 
     z = {}
     for r in range(len(Routes)):                              # Decision Variables (DVs)
@@ -95,12 +95,12 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                 gj = next(airp for airp in Airports if airp.ICAO == l[1]).Hub
                 cost += (acft.OperatingCost + acft.TimeCost*AirPair.Distance/acft.Speed + acft.FuelCost*fuel_price/1.5*AirPair.Distance)*(1-(2- gi - gj)*0.3) +energy_price*acft.EnergyCost*AirPair.Distance/acft.Range
             z[r,k] = model.addVar(obj=cost, vtype ="I",
-                                                    name = "z-r"+str(Routes[r].ID)+acft.Name)
+                                                    name = ("z-r"+str(Routes[r].ID)+acft.Name).replace(" ", ""))
 
     ACk = {}                              # Decision Variables (DVs)
     for k in range(len(Aircrafts)):
         acft = Aircrafts[k]
-        ACk[k] = model.addVar(obj=acft.Lease, vtype ="I", name = "AC"+acft.Name)
+        ACk[k] = model.addVar(obj=acft.Lease, vtype ="I", name = ("AC"+acft.Name).replace(" ", ""))
 
     model.update()
 
@@ -222,10 +222,16 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                 a = 0
             Range[r,k] = model.addLConstr(z[r,k],'<=', a, name = 'range'+AirPair.From+'-'+AirPair.To+Aircrafts[k].Name)
 
-    model.update()
-    model.setParam('TimeLimit', 15/60 * 60)
-    model.write("RB_Model.lp")
-    model.optimize()
+    if solve:
+        model.update()
+        model.setParam('TimeLimit', 3600/2)
+        model.write("RB_Model.lp")
+        model.optimize()
+        model.write("RB.sol")
+    else:
+        model.update()
+        model.read("RB.sol")
+        model.optimize()
 
     status = model.status
     if status != GRB.Status.OPTIMAL:
@@ -280,16 +286,16 @@ if __name__ == '__main__':
     Airports        = []
     DemandPairs     = []
 
-    wb = load_workbook("Aircraft_info copy.xlsx", read_only=True)
+    wb = load_workbook("Aircraft_info.xlsx", read_only=True)
     List_aircraft_info = tuple(wb["Aircraft_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Airport_info copy.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Airport_info.xlsx", read_only=True)
     List_airport_info = tuple(wb["Group_16_Airport_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Demand copy.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Demand.xlsx", read_only=True)
     List_demand_forecast_data = tuple(wb["Group_16_Demand"].iter_rows())
 
-    wb = load_workbook("Group_16_Distances copy.xlsx", read_only=True)
+    wb = load_workbook("Group_16_Distances.xlsx", read_only=True)
     List_airport_distances = tuple(wb["Group_16_Distances"].iter_rows())
 
     wb = load_workbook("Group_16_Annual_Growth.xlsx", read_only=True)
@@ -475,7 +481,7 @@ if __name__ == '__main__':
 
     start_time = time()
     # RUN MCF PROBLEM
-    FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1)
+    FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1, solve=True)
     
     elapsed_time = time() - start_time
 

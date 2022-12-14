@@ -160,7 +160,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
     
     if solve:
         model.update()
-        model.setParam('TimeLimit', 10/60 * 60)
+        # model.setParam('Ti meLimit', 3*3600)
         model.write("FN_Model.lp")    
         model.optimize()
         model.write("FN_Model.sol")
@@ -186,12 +186,10 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
 
     print
     
-   
-    # for m in range(len(AirportPairs)):
-    #     print("")
-    #     if x[AirportPairs[m].From,AirportPairs[m].To].X >0 or w[AirportPairs[m].From,AirportPairs[m].To].X >0:
-    #             print("x"+AirportPairs[m].From+'-'+AirportPairs[m].To,x[AirportPairs[m].From,AirportPairs[m].To].X)
-    #             print("w"+AirportPairs[m].From+'-'+AirportPairs[m].To,w[AirportPairs[m].From,AirportPairs[m].To].X)
+    total_pax = 0
+    for m in range(len(AirportPairs)):
+        total_pax += (x[AirportPairs[m].From,AirportPairs[m].To].X + w[AirportPairs[m].From,AirportPairs[m].To].X)
+              
                 
     #     for k in range(len(Aircrafts)):
     #         if z[AirportPairs[m].From,AirportPairs[m].To,k].X >0:
@@ -204,15 +202,40 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
     workbook = xlsxwriter.Workbook('results.xlsx')
     worksheet = workbook.add_worksheet()
 
+   
+
+    cell_format1 = workbook.add_format()
+    cell_format1.set_num_format(9)
+    cell_format1.set_left()
+
+    cell_format2 = workbook.add_format()
+    cell_format2.set_top()
+
+    cell_format3 = workbook.add_format()
+    cell_format3.set_left()
+
+    cell_format4 = workbook.add_format()
+    cell_format4.set_left()
+    cell_format4.set_top()
+
+
     for col in range(len(Airports)):
-        worksheet.write(0, col, Airports[col].ICAO)
-        worksheet.write(col, 0, Airports[col].ICAO)
+        worksheet.write(0, col*2+1, Airports[col].ICAO)
+        worksheet.write(col*3+1, 0, Airports[col].ICAO)
         for row in range(len(Airports)):
-            From    = next(airp for airp in Airports if airp.ICAO == Airports[col].ICAO)
-            To      = next(airp for airp in Airports if airp.ICAO == Airports[row].ICAO)
-            worksheet.write()
+            From    = Airports[col].ICAO
+            To      = Airports[row].ICAO
+            worksheet.write((row)*3+1,(col)*2+1,x[From,To].X+w[From,To].X,cell_format4)            
+            worksheet.write((row)*3+2,(col)*2+1,w[From,To].X,cell_format3)            
+            if next(airp for airp in AirportPairs if airp.From == From and airp.To == To).Demand2030 == 0:
+                worksheet.write((row)*3+3,(col)*2+1,0,cell_format1)
+            else:
+                worksheet.write((row)*3+3,(col)*2+1,(x[From,To].X+w[From,To].X)/next(airp for airp in AirportPairs if airp.From == From and airp.To == To).Demand2030,cell_format1)
+            worksheet.write((row)*3+1,(col)*2+2,z[From,To,0].X,cell_format2)
+            worksheet.write((row)*3+2,(col)*2+2,z[From,To,1].X)
+            worksheet.write((row)*3+3,(col)*2+2,z[From,To,2].X)
 
-
+    workbook.close()
             
     print
     print ("Objective Function =", model.ObjVal/1.0)
