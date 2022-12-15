@@ -5,6 +5,7 @@ from openpyxl import *
 from time import *
 import numpy as np
 import itertools
+import pickle
 
 class AirportPair:
     def __init__(self,origin, destination, distance, demand2030):
@@ -224,13 +225,14 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
 
     if solve:
         model.update()
-        model.setParam('TimeLimit', 3600/2)
+        model.setParam('TimeLimit', 5*60)
         model.write("RB_Model.lp")
         model.optimize()
         model.write("RB.sol")
     else:
         model.update()
         model.read("RB.sol")
+        model.setParam('TimeLimit', 1)
         model.optimize()
 
     status = model.status
@@ -252,7 +254,6 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
     
     
     for r in range(len(Routes)):
-        print("")
         for m in range(len(AirportPairs)):
             if  x[AirportPairs[m].From,AirportPairs[m].To,r].X>0:
                     print(x[AirportPairs[m].From,AirportPairs[m].To,r].VarName,x[AirportPairs[m].From,AirportPairs[m].To,r].X)
@@ -286,20 +287,20 @@ if __name__ == '__main__':
     Airports        = []
     DemandPairs     = []
 
-    wb = load_workbook("Aircraft_info.xlsx", read_only=True)
-    List_aircraft_info = tuple(wb["Aircraft_info"].iter_rows())
+    wbs = load_workbook("Aircraft_info.xlsx", read_only=True)
+    List_aircraft_info = tuple(wbs["Aircraft_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Airport_info.xlsx", read_only=True)
-    List_airport_info = tuple(wb["Group_16_Airport_info"].iter_rows())
+    wbs = load_workbook("Group_16_Airport_info.xlsx", read_only=True)
+    List_airport_info = tuple(wbs["Group_16_Airport_info"].iter_rows())
 
-    wb = load_workbook("Group_16_Demand.xlsx", read_only=True)
-    List_demand_forecast_data = tuple(wb["Group_16_Demand"].iter_rows())
+    wbs = load_workbook("Group_16_Demand.xlsx", read_only=True)
+    List_demand_forecast_data = tuple(wbs["Group_16_Demand"].iter_rows())
 
-    wb = load_workbook("Group_16_Distances.xlsx", read_only=True)
-    List_airport_distances = tuple(wb["Group_16_Distances"].iter_rows())
+    wbs = load_workbook("Group_16_Distances.xlsx", read_only=True)
+    List_airport_distances = tuple(wbs["Group_16_Distances"].iter_rows())
 
-    wb = load_workbook("Group_16_Annual_Growth.xlsx", read_only=True)
-    List_annual_growth = tuple(wb["Group_16_Annual_growth"].iter_rows())
+    wbs = load_workbook("Group_16_Annual_Growth.xlsx", read_only=True)
+    List_annual_growth = tuple(wbs["Group_16_Annual_growth"].iter_rows())
 
     annual_growth = float(List_annual_growth[0][0].value)
 
@@ -481,7 +482,10 @@ if __name__ == '__main__':
 
     start_time = time()
     # RUN MCF PROBLEM
-    FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1, solve=True)
+    with open('routebasedddd.pickle', 'wb') as file:
+        pickle.dump((AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1), file)
+
+    FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1, solve=False)
     
     elapsed_time = time() - start_time
 

@@ -185,10 +185,76 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
         # exit(0)
 
     print
+
+    ask = 0
+    for k in range(len(Aircrafts)):
+            for m in range(len(AirportPairs)):
+                AirPair = AirportPairs[m]
+                ask += AirPair.Distance*z[AirPair.From,AirPair.To,k].X*Aircrafts[k].Seats
+
+    print("ask",ask)
     
-    total_pax = 0
+    rpk = 0
     for m in range(len(AirportPairs)):
-        total_pax += (x[AirportPairs[m].From,AirportPairs[m].To].X + w[AirportPairs[m].From,AirportPairs[m].To].X)
+        AirPair = AirportPairs[m]
+        rpk += (AirPair.Distance*(x[AirPair.From,AirPair.To].X + quicksum(w[AirPair.From,p.ICAO].X*(1-next(airp for airp in Airports if airp.ICAO == AirPair.To).Hub) for p in Airports)
+                + quicksum(w[p.ICAO,AirPair.To].X*(1-next(airp for airp in Airports if airp.ICAO == AirPair.From).Hub) for p in Airports)))
+    print("rpk",rpk)
+   
+    total_paxx = 0
+    for m in range(len(AirportPairs)):
+        total_paxx += (x[AirportPairs[m].From,AirportPairs[m].To].X)
+    print('pax_X',total_paxx)
+    total_paxw = 0
+    for m in range(len(AirportPairs)):
+        total_paxw += ( w[AirportPairs[m].From,AirportPairs[m].To].X)
+    print('pax_W',total_paxw)
+
+
+
+    costs = 0
+    for k in range(len(Aircrafts)):
+        acft = Aircrafts[k]
+        costs += ACk[k].X * acft.Lease
+        for m in range(len(AirportPairs)):
+            AirPair = AirportPairs[m]                
+            gi = next(airp for airp in Airports if airp.ICAO == AirPair.From).Hub
+            gj = next(airp for airp in Airports if airp.ICAO == AirPair.To).Hub
+            costs += ((acft.OperatingCost + acft.TimeCost*AirPair.Distance/acft.Speed + 
+                                                            acft.FuelCost*fuel_price/1.5*AirPair.Distance)*(1-(2- gi - gj)*0.3)
+                                                            +energy_price*acft.EnergyCost*AirPair.Distance/acft.Range)*z[AirPair.From, AirPair.To,k].X
+    print("costs",costs)
+
+    revenue = 0
+    for m in range(len(AirportPairs)):
+        AirPair = AirportPairs[m]
+        if AirPair.Distance > 0:
+            yield_rpk = 5.9*AirPair.Distance**-0.76+0.043
+        else:
+            yield_rpk = 0 
+        revenue += yield_rpk*AirPair.Distance*(x[AirPair.From,AirPair.To].X + 0.9 * w[AirPair.From,AirPair.To].X)
+    print('revenue',revenue)
+    
+    # rask = float(revenue/ask)
+    # Yield = float(revenue/rpk)
+    # LF = float(rpk/ask)
+
+    utilization_lst = []
+    for k in range(len(Aircrafts)):
+        productivity = block_time*ACk[k].X
+        print('productivity',productivity)
+        act_block_time = quicksum(((AirportPairs[m].Distance/Aircrafts[k].Speed+Aircrafts[k].TAT*(1+0.5*(1-next(airp for airp in Airports if airp.ICAO == AirportPairs[m].To).Hub)))*z[AirportPairs[m].From,AirportPairs[m].To,k].X) for m in range(len(AirportPairs)))
+        print("act_block_time",act_block_time)
+        # utilization_lst.append(act_block_time / productivity)
+
+    # print("ask",ask)
+    # print("rpk",rpk)
+    # print("cask",cask)
+    # print("rask",rask)
+    # print("yield",Yield)
+    # print('lf',LF)
+    # for utilization in utilization_lst:
+    #     print('utilization',utilization)
               
                 
     #     for k in range(len(Aircrafts)):
@@ -233,7 +299,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                 worksheet.write((row)*3+3,(col)*2+1,(x[From,To].X+w[From,To].X)/next(airp for airp in AirportPairs if airp.From == From and airp.To == To).Demand2030,cell_format1)
             worksheet.write((row)*3+1,(col)*2+2,z[From,To,0].X,cell_format2)
             worksheet.write((row)*3+2,(col)*2+2,z[From,To,1].X)
-            worksheet.write((row)*3+3,(col)*2+2,z[From,To,2].X)
+            worksheet.write((row)*3+3,(col)*2+2,z[From,To,2].X)    
 
     workbook.close()
             
