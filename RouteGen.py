@@ -67,16 +67,16 @@ Aircrafts       = []
 Airports        = []
 DemandPairs     = []
 
-wbs = load_workbook("Aircraft_info.xlsx", read_only=True)
+wbs = load_workbook("Aircraft_info copy.xlsx", read_only=True)
 List_aircraft_info = tuple(wbs["Aircraft_info"].iter_rows())
 
-wbs = load_workbook("Group_16_Airport_info.xlsx", read_only=True)
+wbs = load_workbook("Group_16_Airport_info copy.xlsx", read_only=True)
 List_airport_info = tuple(wbs["Group_16_Airport_info"].iter_rows())
 
-wbs = load_workbook("Group_16_Demand.xlsx", read_only=True)
+wbs = load_workbook("Group_16_Demand copy.xlsx", read_only=True)
 List_demand_forecast_data = tuple(wbs["Group_16_Demand"].iter_rows())
 
-wbs = load_workbook("Group_16_Distances.xlsx", read_only=True)
+wbs = load_workbook("Group_16_Distances copy.xlsx", read_only=True)
 List_airport_distances = tuple(wbs["Group_16_Distances"].iter_rows())
 
 wbs = load_workbook("Group_16_Annual_Growth.xlsx", read_only=True)
@@ -265,5 +265,5 @@ for route in valid_routes:
 start_time = time()
 data = (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1)
 # RUN MCF PROBLEM
-with open('routebased.pickle', 'wb') as file:
+with open('routebased_copy.pickle', 'wb') as file:
     pickle.dump(data, file)
