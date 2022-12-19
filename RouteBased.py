@@ -343,6 +343,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
 
     cost = 0
     for k in range(len(Aircrafts)):
+        acft =  Aircrafts[k]
         cost += ACk[k].X * acft.Lease
 
     for r in range(len(Routes)):                              # Decision Variables (DVs)
