@@ -1,3 +1,8 @@
+# Group 16
+# Mauryze Brug (4700651)
+# Alec Pietersz (5020328)
+# Emma Zadeits (4671880)
+
 from gurobipy import Model, quicksum, GRB
 from numpy import *
 from openpyxl import load_workbook
@@ -6,6 +11,7 @@ import numpy as np
 import itertools
 import pickle
 
+# file to read input data and generate routes
 class AirportPair:
     def __init__(self,origin, destination, distance, demand2030):
         self.From       = origin
@@ -135,15 +141,11 @@ b1 = solution[1]
 b2 = solution[2]
 b3 = solution[3]
 
-k = -5.908334491674755
-b1 = 0.3507381298874774
-b2 = 0.14095537035529815
-b3 = -0.25329734075161936
+# k = -5.908334491674755
+# b1 = 0.3507381298874774
+# b2 = 0.14095537035529815
+# b3 = -0.25329734075161936
 
-# print("k = " ,solution[0])
-# print("b1 = ",solution[1])
-# print("b2 = ",solution[2])
-# print("b3 = ",solution[3])
 
 for airport in Airports:
     airport.Population2030 = airport.Population2020*(annual_growth**10)
@@ -185,17 +187,6 @@ for apt in temp_list:
 routes2 = []
 for route in routes:
     routes2.append((hub.ICAO,) + route + (hub.ICAO,))
-
-# s = []
-# for apt in Airports:
-#     s.append(apt.ICAO)
-# s.append(hub.ICAO)
-
-# routes = set()
-# for k in range(1, len(s)+1):
-#     for comb in itertools.permutations(s, k):
-#             if comb[0] == hub.ICAO and comb[-1] == hub.ICAO and len(comb)>2:                    
-#                 routes.add(comb)
 
 valid_routes = []
 
@@ -255,12 +246,6 @@ routes1 = []
 for route in valid_routes:
     if len(route.Airports) <= 3:
         routes1.append(route)
-
-# for pair in routes1:
-#     print(vars(pair))
-# print("")    
-# for pair in valid_routes:
-#     print(vars(pair))
 
 start_time = time()
 data = (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1)

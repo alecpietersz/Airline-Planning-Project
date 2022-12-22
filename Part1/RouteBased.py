@@ -1,3 +1,7 @@
+# Group 16
+# Mauryze Brug (4700651)
+# Alec Pietersz (5020328)
+# Emma Zadeits (4671880)
 
 from gurobipy import Model, quicksum, GRB
 from numpy import *
@@ -8,6 +12,7 @@ import itertools
 import pickle
 import xlsxwriter
 
+# defining object classes which will be used to store relevant information
 class AirportPair:
     def __init__(self,origin, destination, distance, demand2030):
         self.From       = origin
@@ -58,11 +63,12 @@ class Route:
         self.Subsequent = subsequent        
         self.Legs       = legs
 
-# AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1
+# function which generates and runs model
 def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, Routes, Routes2, Routes1, solve):
     
-    model = Model("FN")                # LP model (this is an object)
-    
+    model = Model("FN") # LP model (this is an object)
+
+    # create decision variables    
     w = {}
     for r in range(len(Routes)):
         for n in range(len(Routes)):                              # Decision Variables (DVs
@@ -105,17 +111,14 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
         ACk[k] = model.addVar(obj=acft.Lease, vtype ="I", name = ("AC"+acft.Name).replace(" ", ""))
 
     model.update()
+    
+    # generate constraint
 
     Demand1 = {}                     # build 'capacity' constraints
     for m in range(len(AirportPairs)):
         AirPair = AirportPairs[m]
         Demand1[AirPair.From,AirPair.To] = model.addLConstr(quicksum(x[AirPair.From,AirPair.To,r]+quicksum(w[AirPair.From,AirPair.To,r,n] for n in range(len(Routes))) for r in range(len(Routes))),
                                                              '<=', AirPair.Demand2030, name = 'dem1'+AirPair.From+'-'+AirPair.To)
-
-
-    # [item for item in accounts if item.get('id')==2]
-    # [airp for airp in Airports if airp.get('Name')==AirportPairs[m].From].Name
-    # INDX is the airport for which name == AirportPairs[m].From
 
     Demand2 = {}                       # build 'capacity' constraints
     for m in range(len(AirportPairs)):
@@ -154,12 +157,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                                         + quicksum(quicksum(w[p.ICAO,j,n,r] for n in range(len(Routes))) for p in Airports)+ 
                                         quicksum(quicksum(w[i,p.ICAO,r,n] for n in range(len(Routes))) for p in Airports),
                                         '<=', quicksum(z[r,k]*Aircrafts[k].Seats*load_factor for k in range(len(Aircrafts))), name = 'flow2r'+str(Routes[r].ID))
-        # print('')
-        # print(Routes[r].Airports)
-        # print("i",i)
-        # print("j",j)
-        # print("Sj",Routes[r].Subsequent[j])
-        # print("Pi",Routes[r].Precedent[i])
+        
         
 
 
@@ -180,9 +178,6 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                                         '<=', quicksum(z[r,k]*Aircrafts[k].Seats*load_factor for k in range(len(Aircrafts))), name = 'flow3r'+str(Routes[r].ID))
 
 
-
-    #AirportPairs[m].Distance/Aircrafts[0].Speed+Aircrafts[0].LTO)*z[AirportPairs[m].From,AirportPairs[m].To]
-
     ACProductivity = {}                       # build 'capacity' constraints
     for k in range(len(Aircrafts)):
         acft = Aircrafts[k]
@@ -193,9 +188,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                 AirPair = next(airp for airp in AirportPairs if airp.From == l[0] and airp.To == l[1])
                 gj = next(airp for airp in Airports if airp.ICAO == l[1]).Hub
                 tat += acft.TAT*(1+0.5*(1-gj))
-            tat_list[r] = tat
-        # print(tat_list)
-             
+            tat_list[r] = tat             
         ACProductivity[k] = model.addLConstr(quicksum((Routes[r].Distance/acft.Speed + acft.Charging + tat_list[r])*z[r,k] for r in range(len(Routes))) ,'<=', block_time*ACk[k], name = 'ACProductivity'+Aircrafts[k].Name)
 
     Runway = {}
@@ -224,9 +217,9 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                 a = 0
             Range[r,k] = model.addLConstr(z[r,k],'<=', a, name = 'range'+AirPair.From+'-'+AirPair.To+Aircrafts[k].Name)
 
+    # run model
     if solve:
         model.update()
-        # model.setParam('TimeLimit', 1*60)
         model.write("RB_Model.lp")
         model.optimize()
         model.write("RB.sol")
@@ -249,19 +242,11 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
                     print('%s' % c.constrName)
         elif status != GRB.Status.INF_OR_UNBD:
             print('Optimization was stopped with status %d' % status)
-        # exit(0)
 
     print
-    
-    
+
+    # process results and calculate kpi's   
     for r in range(len(Routes)):
-        # for m in range(len(AirportPairs)):
-        #     if  x[AirportPairs[m].From,AirportPairs[m].To,r].X>0:
-        #             print(x[AirportPairs[m].From,AirportPairs[m].To,r].VarName,x[AirportPairs[m].From,AirportPairs[m].To,r].X)
-        #             for n in range(len(Routes)):
-        #                 if  w[AirportPairs[m].From,AirportPairs[m].To,r,n].X>0:
-        #                  print(w[AirportPairs[m].From,AirportPairs[m].To,r,n].VarName,w[AirportPairs[m].From,AirportPairs[m].To,r,n].X)
-                    
         for k in range(len(Aircrafts)):
             if z[r,k].X >0:
                 print(z[r,k].VarName,z[r,k].X)
@@ -388,7 +373,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
         act_block_time = quicksum((Routes[r].Distance/acft.Speed + acft.Charging + tat_list[r])*z[r,k].X for r in range(len(Routes)))
         print('act_block_time',act_block_time)
 
-
+    #save results to excel file
     workbook = xlsxwriter.Workbook('results_ROUTE.xlsx')
     worksheet = workbook.add_worksheet()   
 
@@ -418,10 +403,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
             if next(airp for airp in AirportPairs if airp.From == From and airp.To == To).Demand2030 == 0:
                 worksheet.write((row)*3+3,(col)+1,0,cell_format1)
             else:
-                worksheet.write((row)*3+3,(col)+1,(x_od[From,To]+w_od[From,To])/next(airp for airp in AirportPairs if airp.From == From and airp.To == To).Demand2030,cell_format1)
-            # worksheet.write((row)*3+1,(col)*2+2,z[From,To,0].X,cell_format2)
-            # worksheet.write((row)*3+2,(col)*2+2,z[From,To,1].X)
-            # worksheet.write((row)*3+3,(col)*2+2,z[From,To,2].X)    
+                worksheet.write((row)*3+3,(col)+1,(x_od[From,To]+w_od[From,To])/next(airp for airp in AirportPairs if airp.From == From and airp.To == To).Demand2030,cell_format1)   
 
     workbook.close()
 
@@ -436,14 +418,13 @@ if __name__ == '__main__':
     
 
     start_time = time()
-    # RUN MCF PROBLEM
 
     file = open('routebased.pickle', 'rb')
     data = pickle.load(file)
 
     AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1 = data
 
-    FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1, solve=False)
+    FN_Problem(AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, valid_routes, routes2, routes1, solve=True)
     
     elapsed_time = time() - start_time
 

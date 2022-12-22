@@ -1,4 +1,8 @@
-#hello
+# Group 16
+# Mauryze Brug (4700651)
+# Alec Pietersz (5020328)
+# Emma Zadeits (4671880)
+
 from gurobipy import Model, quicksum, GRB
 from numpy import *
 from openpyxl import *
@@ -6,6 +10,9 @@ from time import *
 import numpy as np
 import pandas as pd
 import xlsxwriter
+
+# defining object classes which will be used to store relevant information
+
 
 class AirportPair:
     def __init__(self,origin, destination, distance, demand2030):
@@ -47,11 +54,12 @@ class Aircraft:
         self.FuelCost       = fuel_cost
         self.EnergyCost     = energy_cost
 
-
+# function which generates and runs model
 def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energy_price, load_factor, solve):
     
     model = Model("FN")                # LP model (this is an object)
     
+    # create decision variables
     w = {}                              # Decision Variables (DVs
     for m in range(len(AirportPairs)):
         AirPair = AirportPairs[m]
@@ -90,77 +98,72 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
         ACk[k] = model.addVar(obj=acft.Lease, vtype ="I", name = ("AC"+acft.Name).replace(" ", ""))
 
     model.update()
-    if solve:
 
-        Demand = {}                       # build 'capacity' constraints
-        for m in range(len(AirportPairs)):
-            AirPair = AirportPairs[m]
-            Demand[AirPair.From,AirPair.To] = model.addConstr(x[AirPair.From,AirPair.To]+w[AirPair.From,AirPair.To],
-                                                                '<=', AirPair.Demand2030, name = 'qnor'+AirPair.From+'-'+AirPair.To)
+    #create constraints
+    Demand = {}                       # build 'capacity' constraints
+    for m in range(len(AirportPairs)):
+        AirPair = AirportPairs[m]
+        Demand[AirPair.From,AirPair.To] = model.addConstr(x[AirPair.From,AirPair.To]+w[AirPair.From,AirPair.To],
+                                                            '<=', AirPair.Demand2030, name = 'qnor'+AirPair.From+'-'+AirPair.To)
 
+    DemandTransfer = {}                       # build 'capacity' constraints
+    for m in range(len(AirportPairs)):
+        AirPair = AirportPairs[m]
+        DemandTransfer[AirPair.From,AirPair.To] = model.addConstr(w[AirPair.From,AirPair.To],
+                                                            '<=', AirPair.Demand2030*next(airp for airp in Airports if airp.ICAO == AirPair.From).Hub*next(airp for airp in Airports if airp.ICAO == AirPair.To).Hub, 
+                                                            name = 'qtrans'+AirPair.From+'-'+AirPair.To)
 
-        # [item for item in accounts if item.get('id')==2]
-        # [airp for airp in Airports if airp.get('Name')==AirportPairs[m].From].Name
-        # INDX is the airport for which name == AirportPairs[m].From
-        DemandTransfer = {}                       # build 'capacity' constraints
-        for m in range(len(AirportPairs)):
-            AirPair = AirportPairs[m]
-            DemandTransfer[AirPair.From,AirPair.To] = model.addConstr(w[AirPair.From,AirPair.To],
-                                                                '<=', AirPair.Demand2030*next(airp for airp in Airports if airp.ICAO == AirPair.From).Hub*next(airp for airp in Airports if airp.ICAO == AirPair.To).Hub, 
-                                                                name = 'qtrans'+AirPair.From+'-'+AirPair.To)
+    Capacity = {}                       # build 'capacity' constraints
+    for m in range(len(AirportPairs)):
+        AirPair = AirportPairs[m]
+        Capacity[AirPair.From,AirPair.To] = model.addConstr(x[AirPair.From,AirPair.To]
+                                                            + quicksum(w[AirPair.From,p.ICAO]*(1-next(airp for airp in Airports if airp.ICAO == AirPair.To).Hub) for p in Airports)
+                                                            + quicksum(w[p.ICAO,AirPair.To]*(1-next(airp for airp in Airports if airp.ICAO == AirPair.From).Hub) for p in Airports)
+                                                            ,'<=', quicksum(z[AirPair.From,AirPair.To,k]*Aircrafts[k].Seats*load_factor for k in range(len(Aircrafts))), name = 'Capacity'+AirPair.From+'-'+AirPair.To)
 
-        Capacity = {}                       # build 'capacity' constraints
-        for m in range(len(AirportPairs)):
-            AirPair = AirportPairs[m]
-            Capacity[AirPair.From,AirPair.To] = model.addConstr(x[AirPair.From,AirPair.To]
-                                                                + quicksum(w[AirPair.From,p.ICAO]*(1-next(airp for airp in Airports if airp.ICAO == AirPair.To).Hub) for p in Airports)
-                                                                + quicksum(w[p.ICAO,AirPair.To]*(1-next(airp for airp in Airports if airp.ICAO == AirPair.From).Hub) for p in Airports)
-                                                                ,'<=', quicksum(z[AirPair.From,AirPair.To,k]*Aircrafts[k].Seats*load_factor for k in range(len(Aircrafts))), name = 'Capacity'+AirPair.From+'-'+AirPair.To)
-
-        Continuity = {}
-        for k in range(len(Aircrafts)):                       # build 'continuity' constraints
-            for m in range(len(Airports)):    
-                Continuity[Airports[m]] = model.addConstr((quicksum(z[Airports[m].ICAO,p.ICAO,k] for p in Airports) - quicksum(z[p.ICAO,Airports[m].ICAO,k] for p in Airports)),
-                                        '=', 0, name ='Continuity' +Airports[m].ICAO+Aircrafts[k].Name)
-
-        #AirportPairs[m].Distance/Aircrafts[0].Speed+Aircrafts[0].LTO)*z[AirportPairs[m].From,AirportPairs[m].To]
-
-        ACProductivity = {}                       # build 'capacity' constraints
-        for k in range(len(Aircrafts)):
-            ACProductivity[k] = model.addConstr(quicksum(((AirportPairs[m].Distance/Aircrafts[k].Speed+Aircrafts[k].TAT*(1+0.5*(1-next(airp for airp in Airports if airp.ICAO == AirportPairs[m].To).Hub)))*z[AirportPairs[m].From,AirportPairs[m].To,k]) for m in range(len(AirportPairs))),
-                                                                    '<=', block_time*ACk[k], name = 'ACProductivity'+Aircrafts[k].Name)
-
-        Runway = {}
-        for k in range(len(Aircrafts)):
-            for m in range(len(AirportPairs)):
-                AirPair = AirportPairs[m]
-                acft = Aircrafts[k]
-                airp_from = next(airp for airp in Airports if airp.ICAO == AirPair.From).Runway
-                airp_to   = next(airp for airp in Airports if airp.ICAO == AirPair.To).Runway
-                if airp_from >= acft.Runway and airp_to >= acft.Runway:
-                    a = 10000
-                else:
-                    a = 0
-                Runway[AirPair.From,AirPair.To,k] = model.addConstr(z[AirPair.From,AirPair.To,k],
-                                                                    '<=', a, 
-                                                                    name = 'runway'+AirPair.From+'-'+AirPair.To+acft.Name)
-
-        Range = {}
-        for k in range(len(Aircrafts)):
-            for m in range(len(AirportPairs)):
-                AirPair = AirportPairs[m]
-                if AirPair.Distance <= Aircrafts[k].Range:
-                    a = 10000
-                else:
-                    a = 0
-                Range[AirPair.From,AirPair.To,k] = model.addConstr(z[AirPair.From,AirPair.To,k],
-                                                                    '<=', a, 
-                                                                    name = 'range'+AirPair.From+'-'+AirPair.To+Aircrafts[k].Name)
+    Continuity = {}
+    for k in range(len(Aircrafts)):                       # build 'continuity' constraints
+        for m in range(len(Airports)):    
+            Continuity[Airports[m]] = model.addConstr((quicksum(z[Airports[m].ICAO,p.ICAO,k] for p in Airports) - quicksum(z[p.ICAO,Airports[m].ICAO,k] for p in Airports)),
+                                    '=', 0, name ='Continuity' +Airports[m].ICAO+Aircrafts[k].Name)
 
     
+    ACProductivity = {}                       # build 'capacity' constraints
+    for k in range(len(Aircrafts)):
+        ACProductivity[k] = model.addConstr(quicksum(((AirportPairs[m].Distance/Aircrafts[k].Speed+Aircrafts[k].TAT*(1+0.5*(1-next(airp for airp in Airports if airp.ICAO == AirportPairs[m].To).Hub)))*z[AirportPairs[m].From,AirportPairs[m].To,k]) for m in range(len(AirportPairs))),
+                                                                '<=', block_time*ACk[k], name = 'ACProductivity'+Aircrafts[k].Name)
+
+    Runway = {}
+    for k in range(len(Aircrafts)):
+        for m in range(len(AirportPairs)):
+            AirPair = AirportPairs[m]
+            acft = Aircrafts[k]
+            airp_from = next(airp for airp in Airports if airp.ICAO == AirPair.From).Runway
+            airp_to   = next(airp for airp in Airports if airp.ICAO == AirPair.To).Runway
+            if airp_from >= acft.Runway and airp_to >= acft.Runway:
+                a = 10000
+            else:
+                a = 0
+            Runway[AirPair.From,AirPair.To,k] = model.addConstr(z[AirPair.From,AirPair.To,k],
+                                                                '<=', a, 
+                                                                name = 'runway'+AirPair.From+'-'+AirPair.To+acft.Name)
+
+    Range = {}
+    for k in range(len(Aircrafts)):
+        for m in range(len(AirportPairs)):
+            AirPair = AirportPairs[m]
+            if AirPair.Distance <= Aircrafts[k].Range:
+                a = 10000
+            else:
+                a = 0
+            Range[AirPair.From,AirPair.To,k] = model.addConstr(z[AirPair.From,AirPair.To,k],
+                                                                '<=', a, 
+                                                                name = 'range'+AirPair.From+'-'+AirPair.To+Aircrafts[k].Name)
+
+    #run model
+
     if solve:
         model.update()
-        # model.setParam('Ti meLimit', 3*3600)
         model.write("FN_Model.lp")    
         model.optimize()
         model.write("FN_Model.sol")
@@ -185,6 +188,8 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
         # exit(0)
 
     print
+
+    #process results
 
     ask = 0
     for k in range(len(Aircrafts)):
@@ -247,24 +252,13 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
         print("act_block_time",act_block_time)
         # utilization_lst.append(act_block_time / productivity)
 
-    # print("ask",ask)
-    # print("rpk",rpk)
-    # print("cask",cask)
-    # print("rask",rask)
-    # print("yield",Yield)
-    # print('lf',LF)
-    # for utilization in utilization_lst:
-    #     print('utilization',utilization)
-              
-                
-    #     for k in range(len(Aircrafts)):
-    #         if z[AirportPairs[m].From,AirportPairs[m].To,k].X >0:
-    #             print("z"+AirportPairs[m].From+'-'+AirportPairs[m].To+'-'+Aircrafts[k].Name,z[AirportPairs[m].From,AirportPairs[m].To,k].X)
     
-    # for k in range(len(Aircrafts)):
-    #     if ACk[k].X > 0:
-    #         print("AC"+Aircrafts[k].Name,ACk[k].X)
+    for k in range(len(Aircrafts)):
+        if ACk[k].X > 0:
+            print("AC"+Aircrafts[k].Name,ACk[k].X)
 
+
+    # save results in excel file
     workbook = xlsxwriter.Workbook('results.xlsx')
     worksheet = workbook.add_worksheet()
 
@@ -310,7 +304,7 @@ def FN_Problem (AirportPairs, Aircrafts, Airports, fuel_price, block_time, energ
 
 if __name__ == '__main__':
     #=================================================================================================
-    # Input excel file with arcs data (sheet1) and commodities data (sheet2)
+   # read input data
     fuel_price      = 1.42  # $/gallon
     block_time      = 10*7    # hrs
     energy_price    = 0.07  # euro/kWh
@@ -353,12 +347,7 @@ if __name__ == '__main__':
             new_pair = AirportPair(List_airport_distances[i+1][0].value,List_airport_distances[0][j+1].value,(List_airport_distances[i+1][j+1].value), None)
             AirportPairs.append(new_pair)
 
-    # for pair in AirportPairs:
-    #     print(vars(pair))
-    # print("")    
-    # for pair in DemandPairs:
-    #     print(vars(pair))
-
+    # perform least squares
     
     X = np.zeros((len(DemandPairs),4))
     
@@ -392,15 +381,11 @@ if __name__ == '__main__':
     b2 = solution[2]
     b3 = solution[3]
 
-    k = -5.908334491674755
-    b1 = 0.3507381298874774
-    b2 = 0.14095537035529815
-    b3 = -0.25329734075161936
+    # k = -5.908334491674755
+    # b1 = 0.3507381298874774
+    # b2 = 0.14095537035529815
+    # b3 = -0.25329734075161936
 
-    # print("k = " ,solution[0])
-    # print("b1 = ",solution[1])
-    # print("b2 = ",solution[2])
-    # print("b3 = ",solution[3])
 
     for airport in Airports:
         airport.Population2030 = airport.Population2020*(annual_growth**10)
@@ -421,28 +406,6 @@ if __name__ == '__main__':
         new = Aircraft(name.value, speed.value, seats.value, tat.value, charging.value, ac_range.value, runway.value, lease_cost.value, op_cost.value, time_cost.value, fuel_cost.value, energy_cost.value)
 
         Aircrafts.append(new)
-           
-    
-    # for pair in AirportPairs:
-        
-    #     print(pair.From+pair.To)
-    #     print(pair.Demand2030)
-    #     print('')
-
-    # D = np.zeros((len(Airports),len(Airports)))
-
-
-    # for i in range(len(Airports)):
-    #     for j in range(len(Airports)):
-    #         D[i,j] = next(airp for airp in AirportPairs if airp.From == Airports[i].ICAO and airp.To == Airports[j].ICAO).Demand2030
-    
-    # print(D)
-    # pd.DataFrame(D).to_csv("testtt.csv")
-
-
-    # for pair in Airports:
-    #     print(vars(pair))
-
 
     start_time = time()
     
