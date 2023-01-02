@@ -11,6 +11,7 @@ import numpy as np
 import itertools
 import pickle
 import xlsxwriter
+import datetime
 
 class Flight:
     def __init__(self, fn, origin, destination, dep_time, arr_time, ac_cost):
@@ -40,11 +41,14 @@ class Aircraft:
 
 L      = []
 P      = []
-N      = []
+N      = set()
 K      = []
 RR     = {}
 
-wb = load_workbook("Group_16_copy.xlsx", read_only=True)
+Arcs   = {}
+Nodes  = {}
+
+wb = load_workbook("Group_16_copycopy.xlsx", read_only=True)
 List_flights            = tuple(wb["Flight"].iter_rows())
 List_itineraries        = tuple(wb["Itinerary"].iter_rows())
 List_recapture_rate     = tuple(wb["Recapture Rate"].iter_rows())
@@ -78,7 +82,63 @@ for aircraft in List_aircraft[1:]:
         new_aircraft = Aircraft(aircraft[0].value,aircraft[1].value,aircraft[2].value,aircraft[3].value)
         K.append(new_aircraft)
 
-for flight in K:
-    print(vars(flight))
+for flight in L:
+    N.add(flight.Origin)
+    N.add(flight.Destination)
+N = list(N)
 
-# print(RR.values())
+arc_id = 0
+for aircraft in K:
+    for flight in L:
+        temp_time = flight.ArrTime+ datetime.timedelta(minutes=aircraft.TAT)
+        Arcs[arc_id] = {'arc_type':'flight','ac_type':aircraft.Type,'start_ap':flight.Origin,'end_ap':flight.Destination,'start_time':flight.DepTime,'end_time':temp_time.replace(day = 1)}
+        arc_id += 1
+
+# node_id = 0
+for id, arc in Arcs.items():
+    if (arc['ac_type'],arc['start_ap'],arc['start_time']) in Nodes:
+        Nodes[arc['ac_type'],arc['start_ap'],arc['start_time']]['o_arcs'].append(id)
+    else:
+        Nodes[arc['ac_type'],arc['start_ap'],arc['start_time']] = {'o_arcs':[id],'e_arcs':[]}
+        # node_id+=1
+
+    if (arc['ac_type'],arc['end_ap'],arc['end_time']) in Nodes:
+        Nodes[arc['ac_type'],arc['end_ap'],arc['end_time']]['e_arcs'].append(id)
+    else:
+        Nodes[arc['ac_type'],arc['end_ap'],arc['end_time']] = {'o_arcs':[],'e_arcs':[id]}
+        # node_id+=1
+# print(Nodes)
+    
+NNodes = []
+for id, node in Nodes.items():
+    NNodes.append({'ac_type':id[0],'ap':id[1],'time':id[2],'o_arcs':node['o_arcs'],'e_arcs':node['e_arcs']})
+
+
+for aircraft in K:
+    # print(aircraft.Type)
+    for airport in N:
+        # print(airport)
+        temp_nodes = []
+        for node in NNodes:
+            if node['ac_type'] == aircraft.Type and node['ap'] == airport:
+                temp_nodes.append(node['time'])
+        # print(temp_nodes)
+        sort_list = sorted(temp_nodes)
+        # print(sort_list)
+        for i in range(len(sort_list)-1):
+            Arcs[arc_id] = {'arc_type':'ground','ac_type':aircraft.Type,'start_ap':airport,'end_ap':airport,'start_time':sort_list[i],'end_time':sort_list[i+1]}
+            Nodes[aircraft.Type,airport,sort_list[i]]['o_arcs'].append(arc_id)
+            Nodes[aircraft.Type,airport,sort_list[i+1]]['e_arcs'].append(arc_id)
+            arc_id += 1            
+        Arcs[arc_id] = {'arc_type':'ground','ac_type':aircraft.Type,'start_ap':airport,'end_ap':airport,'start_time':sort_list[-1],'end_time':sort_list[0]}
+        Nodes[aircraft.Type,airport,sort_list[-1]]['o_arcs'].append(arc_id)
+        Nodes[aircraft.Type,airport,sort_list[0]]['e_arcs'].append(arc_id)
+        arc_id += 1
+
+
+data = (L,P,N,K,RR,Arcs,Nodes)
+with open('input_data.pickle', 'wb') as file:
+    pickle.dump(data, file)
+
+
+
