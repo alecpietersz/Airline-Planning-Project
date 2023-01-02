@@ -52,7 +52,7 @@ NGk    = {}
 Delta  = {}
 
 
-wb = load_workbook("Group_16_copycopy.xlsx", read_only=True)
+wb = load_workbook("Group_16.xlsx", read_only=True)
 List_flights            = tuple(wb["Flight"].iter_rows())
 List_itineraries        = tuple(wb["Itinerary"].iter_rows())
 List_recapture_rate     = tuple(wb["Recapture Rate"].iter_rows())
@@ -66,18 +66,20 @@ for flight in List_flights[1:]:
         ac_cost[List_flights[0][7].value] = flight[7].value
         ac_cost[List_flights[0][8].value] = flight[8].value
         ac_cost[List_flights[0][9].value] = flight[9].value
+        print(flight[3].value)
         new_flight = Flight(flight[0].value,flight[1].value,flight[2].value,flight[3].value,flight[4].value,ac_cost)
         L.append(new_flight)
 
+P.append(Itinerary(0,'NONE','NONE',1000000,0,0,[0]))
 for itinerary in List_itineraries[1:]:
     if itinerary[1].value:
         legs = []
         legs.append(itinerary[6].value)
         if itinerary[7].value != 0:
             legs.append(itinerary[7].value)
-        new_itinerary = Itinerary(itinerary[0].value,itinerary[1].value,itinerary[2].value,itinerary[3].value,itinerary[4].value,itinerary[5].value,legs)
+       
+        new_itinerary = Itinerary(itinerary[0].value+1,itinerary[1].value,itinerary[2].value,itinerary[3].value,itinerary[4].value,itinerary[5].value,legs)
         P.append(new_itinerary)
-
 
 
 for rr_pair in List_recapture_rate[1:]:
@@ -153,9 +155,9 @@ for aircraft in K:
         Nodes[aircraft.Type,airport,sort_list[0]]['g_e_arc'] = arc_id
         arc_id += 1
 
-# print(Arcs)
-# print("")
-# print(Nodes)
+print(Arcs)
+print("")
+print(Nodes)
 
 for ac in K:
     cut_arcs = []
@@ -164,8 +166,8 @@ for ac in K:
             cut_arcs.append(id)
     NGk[ac.Type] = cut_arcs
 
-# print("")
-# print(NGk)
+print("")
+print(NGk)
 
 
 data = (L,P,N,K,RR,Arcs,Nodes,NGk, Delta)
