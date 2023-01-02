@@ -22,11 +22,7 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
     t = {}
     for itin1 in P:
         for itin2 in P:
-            if (itin1.ID,itin2.ID) in RR:
-                recap_rate = RR[itin1.ID,itin2.ID]
-            else:
-                recap_rate = 0
-            t[itin1.ID,itin2.ID] = model.addVar(obj=(itin1.Fare-recap_rate*itin2.Fare), vtype = 'I',name = f"t{itin1.ID}-{itin2.ID}")
+            t[itin1.ID,itin2.ID] = model.addVar(obj=(itin1.Fare-RR[itin1.ID,itin2.ID]*itin2.Fare), vtype = 'I',name = f"t{itin1.ID}-{itin2.ID}")
     
     f = {}
     for flight in L:
@@ -44,28 +40,32 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
 
     C1 = {}
     for flight in L:
-        C1[flight.FN] = model.addConstr(quicksum(f[flight.FN,k.Type] for k in K),'=',1, name = f"C1{flight.FN}")
+        C1[flight.FN] = model.addLConstr(quicksum(f[flight.FN,k.Type] for k in K),'=',1, name = f"C1{flight.FN}")
 
     C2 = {}
     for key, node in Nodes.items():
-        C2[key] = model.addConstr(y[node['g_o_arc'],key[0]]+ quicksum(f[Arcs[i]['arc_type'],key[0]] for i in node['o_arcs'])-
+        C2[key] = model.addLConstr(y[node['g_o_arc'],key[0]]+ quicksum(f[Arcs[i]['arc_type'],key[0]] for i in node['o_arcs'])-
                                   y[node['g_e_arc'],key[0]]- quicksum(f[Arcs[i]['arc_type'],key[0]] for i in node['e_arcs']),
-                                  '=', 0, name = f"C2{key}")
+                                  '=', 0, name = f"C2{key}".replace(" ", ""))
     
     C3 = {}
     for aircraft in K:
-        C3[aircraft.Type] = model.addConstr(quicksum(y[a,aircraft.Type] for a in NGk[aircraft.Type] if Arcs[a]['arc_type'] == 'ground') + quicksum(f[Arcs[a]['arc_type'],aircraft.Type] for a in NGk[aircraft.Type] if Arcs[a]['arc_type'] != 'ground'),'<=',aircraft.Units, name = f"C3{aircraft.Type}")
+        C3[aircraft.Type] = model.addLConstr(quicksum(y[a,aircraft.Type] for a in NGk[aircraft.Type] if Arcs[a]['arc_type'] == 'ground') + quicksum(f[Arcs[a]['arc_type'],aircraft.Type] for a in NGk[aircraft.Type] if Arcs[a]['arc_type'] != 'ground'),'<=',aircraft.Units, name = f"C3{aircraft.Type}")
 
     C4 = {}
     for flight in L:
-        C4[flight.FN] = model.addConstr(quicksum(aircraft.Seats*f[flight.FN,aircraft.Type] for aircraft in K) + 
+        C4[flight.FN] = model.addLConstr(quicksum(aircraft.Seats*f[flight.FN,aircraft.Type] for aircraft in K) + 
                                         quicksum(quicksum(Delta[flight.FN,itin1.ID]*t[itin1.ID,itin2.ID] for itin1 in P)for itin2 in P)-
                                         quicksum(quicksum(Delta[flight.FN,itin1.ID]*RR[itin1.ID,itin2.ID]*t[itin1.ID,itin2.ID] for itin1 in P)for itin2 in P),
                                         '>=', quicksum(Delta[flight.FN,itin3.ID]*itin3.Demand for itin3 in P), name = f"C4{flight.FN}")
 
     C5 = {}
     for p in P:
-        C5[p.ID] = model.addConstr(quicksum(t[p.ID,r.ID]for r in P), '<=', p.Demand, name = f"C5{p.ID}")
+        C5[p.ID] = model.addLConstr(quicksum(t[p.ID,r.ID]for r in P), '<=', p.Demand, name = f"C5{p.ID}")
+
+    C6 = {}
+    for p in P:
+        C6[p.ID] = model.addLConstr(t[p.ID,p.ID], '=', 0, name = f"C6{p.ID}")
 
     # run model
     if solve:

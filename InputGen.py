@@ -70,13 +70,15 @@ for flight in List_flights[1:]:
         L.append(new_flight)
 
 for itinerary in List_itineraries[1:]:
-    if itinerary[0].value:
+    if itinerary[1].value:
         legs = []
         legs.append(itinerary[6].value)
         if itinerary[7].value != 0:
             legs.append(itinerary[7].value)
         new_itinerary = Itinerary(itinerary[0].value,itinerary[1].value,itinerary[2].value,itinerary[3].value,itinerary[4].value,itinerary[5].value,legs)
         P.append(new_itinerary)
+
+
 
 for rr_pair in List_recapture_rate[1:]:
     RR[rr_pair[0].value,rr_pair[1].value] = rr_pair[2].value
@@ -151,9 +153,9 @@ for aircraft in K:
         Nodes[aircraft.Type,airport,sort_list[0]]['g_e_arc'] = arc_id
         arc_id += 1
 
-print(Arcs)
-print("")
-print(Nodes)
+# print(Arcs)
+# print("")
+# print(Nodes)
 
 for ac in K:
     cut_arcs = []
@@ -162,8 +164,8 @@ for ac in K:
             cut_arcs.append(id)
     NGk[ac.Type] = cut_arcs
 
-print("")
-print(NGk)
+# print("")
+# print(NGk)
 
 
 data = (L,P,N,K,RR,Arcs,Nodes,NGk, Delta)
