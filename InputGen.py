@@ -47,6 +47,10 @@ RR     = {}
 
 Arcs   = {}
 Nodes  = {}
+NGk    = {}
+
+Delta  = {}
+
 
 wb = load_workbook("Group_16_copycopy.xlsx", read_only=True)
 List_flights            = tuple(wb["Flight"].iter_rows())
@@ -77,6 +81,11 @@ for itinerary in List_itineraries[1:]:
 for rr_pair in List_recapture_rate[1:]:
     RR[rr_pair[0].value,rr_pair[1].value] = rr_pair[2].value
 
+for itin1 in P:
+    for itin2 in P:
+        if not (itin1.ID,itin2.ID) in RR:
+            RR[itin1.ID,itin2.ID] = 0
+
 for aircraft in List_aircraft[1:]:
     if aircraft[0].value:
         new_aircraft = Aircraft(aircraft[0].value,aircraft[1].value,aircraft[2].value,aircraft[3].value)
@@ -87,11 +96,18 @@ for flight in L:
     N.add(flight.Destination)
 N = list(N)
 
+for i in L:
+    for p in P:
+        if i.FN in p.Legs:
+            Delta[i.FN,p.ID] = 1
+        else:
+            Delta[i.FN,p.ID] = 0
+
 arc_id = 0
 for aircraft in K:
     for flight in L:
-        temp_time = flight.ArrTime+ datetime.timedelta(minutes=aircraft.TAT)
-        Arcs[arc_id] = {'arc_type':'flight','ac_type':aircraft.Type,'start_ap':flight.Origin,'end_ap':flight.Destination,'start_time':flight.DepTime,'end_time':temp_time.replace(day = 1)}
+        temp_time = flight.ArrTime + datetime.timedelta(minutes=aircraft.TAT)
+        Arcs[arc_id] = {'arc_type':flight.FN,'ac_type':aircraft.Type,'start_ap':flight.Origin,'end_ap':flight.Destination,'start_time':flight.DepTime,'end_time':temp_time.replace(day = 1)}
         arc_id += 1
 
 # node_id = 0
@@ -99,19 +115,19 @@ for id, arc in Arcs.items():
     if (arc['ac_type'],arc['start_ap'],arc['start_time']) in Nodes:
         Nodes[arc['ac_type'],arc['start_ap'],arc['start_time']]['o_arcs'].append(id)
     else:
-        Nodes[arc['ac_type'],arc['start_ap'],arc['start_time']] = {'o_arcs':[id],'e_arcs':[]}
+        Nodes[arc['ac_type'],arc['start_ap'],arc['start_time']] = {'o_arcs':[id],'e_arcs':[],'g_o_arc':None,'g_e_arc':None}
         # node_id+=1
 
     if (arc['ac_type'],arc['end_ap'],arc['end_time']) in Nodes:
         Nodes[arc['ac_type'],arc['end_ap'],arc['end_time']]['e_arcs'].append(id)
     else:
-        Nodes[arc['ac_type'],arc['end_ap'],arc['end_time']] = {'o_arcs':[],'e_arcs':[id]}
+        Nodes[arc['ac_type'],arc['end_ap'],arc['end_time']] = {'o_arcs':[],'e_arcs':[id],'g_o_arc':None,'g_e_arc':None}
         # node_id+=1
 # print(Nodes)
     
 NNodes = []
 for id, node in Nodes.items():
-    NNodes.append({'ac_type':id[0],'ap':id[1],'time':id[2],'o_arcs':node['o_arcs'],'e_arcs':node['e_arcs']})
+    NNodes.append({'ac_type':id[0],'ap':id[1],'time':id[2],'o_arcs':node['o_arcs'],'e_arcs':node['e_arcs'], 'g_o_arc':node['g_o_arc'], 'g_e_arc':node['g_e_arc']})
 
 
 for aircraft in K:
@@ -127,16 +143,30 @@ for aircraft in K:
         # print(sort_list)
         for i in range(len(sort_list)-1):
             Arcs[arc_id] = {'arc_type':'ground','ac_type':aircraft.Type,'start_ap':airport,'end_ap':airport,'start_time':sort_list[i],'end_time':sort_list[i+1]}
-            Nodes[aircraft.Type,airport,sort_list[i]]['o_arcs'].append(arc_id)
-            Nodes[aircraft.Type,airport,sort_list[i+1]]['e_arcs'].append(arc_id)
+            Nodes[aircraft.Type,airport,sort_list[i]]['g_o_arc'] = arc_id
+            Nodes[aircraft.Type,airport,sort_list[i+1]]['g_e_arc'] = arc_id
             arc_id += 1            
         Arcs[arc_id] = {'arc_type':'ground','ac_type':aircraft.Type,'start_ap':airport,'end_ap':airport,'start_time':sort_list[-1],'end_time':sort_list[0]}
-        Nodes[aircraft.Type,airport,sort_list[-1]]['o_arcs'].append(arc_id)
-        Nodes[aircraft.Type,airport,sort_list[0]]['e_arcs'].append(arc_id)
+        Nodes[aircraft.Type,airport,sort_list[-1]]['g_o_arc'] = arc_id
+        Nodes[aircraft.Type,airport,sort_list[0]]['g_e_arc'] = arc_id
         arc_id += 1
 
+print(Arcs)
+print("")
+print(Nodes)
 
-data = (L,P,N,K,RR,Arcs,Nodes)
+for ac in K:
+    cut_arcs = []
+    for id, arc in Arcs.items():
+        if arc['ac_type'] == ac.Type and (arc['start_time'] > arc['end_time'] or arc['start_time'] == arc['end_time']):
+            cut_arcs.append(id)
+    NGk[ac.Type] = cut_arcs
+
+print("")
+print(NGk)
+
+
+data = (L,P,N,K,RR,Arcs,Nodes,NGk, Delta)
 with open('input_data.pickle', 'wb') as file:
     pickle.dump(data, file)
 
