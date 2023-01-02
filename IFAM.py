@@ -68,16 +68,11 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
         C6[p.ID] = model.addLConstr(t[p.ID,p.ID], '=', 0, name = f"C6{p.ID}")
 
     # run model
-    if solve:
-        model.update()
-        model.write("IFAM.lp")
-        model.optimize()
-        model.write("IFAM.sol")
-    else:
-        model.update()
-        model.read("IFAM.sol")
-        model.setParam('TimeLimit', 10)
-        model.optimize()
+    
+    model.update()
+    model.write("IFAM.lp")
+    model.optimize()
+    
 
     status = model.status
     if status != GRB.Status.OPTIMAL:
@@ -92,12 +87,16 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
                     print('%s' % c.constrName)
         elif status != GRB.Status.INF_OR_UNBD:
             print('Optimization was stopped with status %d' % status)
+    else:
+        model.write("IFAM.sol")
+        print ("Objective Function =", model.ObjVal/1.0)
 
     print
 
+    
             
     print
-    print ("Objective Function =", model.ObjVal/1.0)
+    
     print ("------------------------------------------------------------------------")
 
 
