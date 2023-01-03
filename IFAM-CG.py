@@ -57,7 +57,6 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
         for aircraft in K:
             C3[aircraft.Type] = model.addLConstr(quicksum(y[a,aircraft.Type] for a in NGk[aircraft.Type] if Arcs[a]['arc_type'] == 'ground') + quicksum(f[Arcs[a]['arc_type'],aircraft.Type] for a in NGk[aircraft.Type] if Arcs[a]['arc_type'] != 'ground'),'<=',aircraft.Units, name = f"C3{aircraft.Type}")
 
-
         C4 = {}
         for flight in L:
             sum = 0
@@ -116,12 +115,12 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
         for itin1 in P[1:]:
             for itin2 in P[1:]:
                 c[itin1.ID,itin2.ID] = (itin1.Fare - quicksum(Pi[i] for i in itin1.Legs)) -RR[itin1.ID,itin2.ID]*(itin2.Fare-quicksum(Pi[j] for j in itin2.Legs))-Sigma[itin1.ID]
-                if c[itin1.ID,itin2.ID].getValue() < 0:
-                    exit_condition = False
-                    # print((itin1.ID,itin2.ID))
-                    columns.append((itin1,itin2))
-                    print("COLIUMN ADDED",(itin1.ID,itin2.ID))
-                    
+                
+                if c[itin1.ID,itin2.ID].getValue() < 0:                    
+                    if (itin1,itin2) not in columns:
+                        columns.append((itin1,itin2))
+                        print("COLIUMN ADDED",(itin1.ID,itin2.ID))
+                        exit_condition = False
         
         model = ConstructModel(columns)
 
@@ -131,25 +130,7 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
     print("SOLVE NON-RELAXED")
     model = ConstructModel(columns)
     model.optimize()
-
-    
-
-    # status = model.status
-    # if status != GRB.Status.OPTIMAL:
-    #     if status == GRB.Status.UNBOUNDED:
-    #         print('The model cannot be solved because it is unbounded')
-    #     elif status == GRB.Status.INFEASIBLE:
-    #         print('The model is infeasible; computing IIS')
-    #         model.computeIIS()
-    #         print('\nThe following constraint(s) cannot be satisfied:')
-    #         for c in model.getConstrs():
-    #             if c.IISConstr:
-    #                 print('%s' % c.constrName)
-    #     elif status != GRB.Status.INF_OR_UNBD:
-    #         print('Optimization was stopped with status %d' % status)
-    # else:
-    #     model.write("IFAM_CG.sol")
-    #     print ("Objective Function =", model.ObjVal/1.0)
+    model.write("IFAM_Final.sol") 
    
             
     print
