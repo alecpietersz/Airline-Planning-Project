@@ -63,9 +63,9 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
     for p in P:
         C5[p.ID] = model.addLConstr(quicksum(t[p.ID,r.ID]for r in P), '<=', p.Demand, name = f"C5{p.ID}")
 
-    C6 = {}
-    for p in P:
-        C6[p.ID] = model.addLConstr(t[p.ID,p.ID], '=', 0, name = f"C6{p.ID}")
+    # C6 = {}
+    # for p in P:
+    #     C6[p.ID] = model.addLConstr(t[p.ID,p.ID], '=', 0, name = f"C6{p.ID}")
 
     # run model
     
@@ -93,11 +93,12 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
 
     print
 
-    print(RR)
+    
     for p in P:        
         print(f"x{p.ID}-{p.Demand - quicksum(t[p.ID,r.ID].X for r in P) + t[p.ID,p.ID].X}")
         for r in P:
-            print(f"x{p.ID}-{r.ID}-{RR[p.ID,r.ID]*t[p.ID,r.ID].X}")
+            if RR[p.ID,r.ID]*t[p.ID,r.ID].X > 0:
+                print(f"x{p.ID}-{r.ID}-{RR[p.ID,r.ID]*t[p.ID,r.ID].X}")
     
             
     print
@@ -113,6 +114,9 @@ if __name__ == '__main__':
     data = pickle.load(file)
 
     L,P,N,K,RR,Arcs,Nodes,NGk,Delta = data
+
+    for i in P:
+        print(vars(i))
 
     IFAM_Problem(L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve=True)
     
