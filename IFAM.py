@@ -56,7 +56,7 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
     for flight in L:
         C4[flight.FN] = model.addLConstr(quicksum(aircraft.Seats*f[flight.FN,aircraft.Type] for aircraft in K) + 
                                         quicksum(quicksum(Delta[flight.FN,itin1.ID]*t[itin1.ID,itin2.ID] for itin1 in P)for itin2 in P)-
-                                        quicksum(quicksum(Delta[flight.FN,itin1.ID]*RR[itin1.ID,itin2.ID]*t[itin1.ID,itin2.ID] for itin1 in P)for itin2 in P),
+                                        quicksum(quicksum(Delta[flight.FN,itin1.ID]*RR[itin1.ID,itin2.ID]*t[itin2.ID,itin1.ID] for itin1 in P)for itin2 in P),
                                         '>=', quicksum(Delta[flight.FN,itin3.ID]*itin3.Demand for itin3 in P), name = f"C4{flight.FN}")
 
     C5 = {}
@@ -93,6 +93,11 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
 
     print
 
+    print(RR)
+    for p in P:        
+        print(f"x{p.ID}-{p.Demand - quicksum(t[p.ID,r.ID].X for r in P) + t[p.ID,p.ID].X}")
+        for r in P:
+            print(f"x{p.ID}-{r.ID}-{RR[p.ID,r.ID]*t[p.ID,r.ID].X}")
     
             
     print

@@ -11,7 +11,8 @@ import numpy as np
 import itertools
 import pickle
 import xlsxwriter
-import datetime
+# import datetime
+from datetime import datetime, timedelta
 
 class Flight:
     def __init__(self, fn, origin, destination, dep_time, arr_time, ac_cost):
@@ -52,7 +53,7 @@ NGk    = {}
 Delta  = {}
 
 
-wb = load_workbook("Group_16.xlsx", read_only=True)
+wb = load_workbook("Group_16_2.xlsx", read_only=True)
 List_flights            = tuple(wb["Flight"].iter_rows())
 List_itineraries        = tuple(wb["Itinerary"].iter_rows())
 List_recapture_rate     = tuple(wb["Recapture Rate"].iter_rows())
@@ -66,11 +67,12 @@ for flight in List_flights[1:]:
         ac_cost[List_flights[0][7].value] = flight[7].value
         ac_cost[List_flights[0][8].value] = flight[8].value
         ac_cost[List_flights[0][9].value] = flight[9].value
-        print(flight[3].value)
-        new_flight = Flight(flight[0].value,flight[1].value,flight[2].value,flight[3].value,flight[4].value,ac_cost)
+        deptime = datetime.combine(datetime(1970, 1, 1), flight[3].value)
+        arrtime = datetime.combine(datetime(1970, 1, 1), flight[4].value)
+        new_flight = Flight(flight[0].value,flight[1].value,flight[2].value,deptime,arrtime,ac_cost)
         L.append(new_flight)
 
-P.append(Itinerary(0,'NONE','NONE',1000000,0,0,[0]))
+P.append(Itinerary(0,'NONE','NONE',0,0,0,[0]))
 for itinerary in List_itineraries[1:]:
     if itinerary[1].value:
         legs = []
@@ -83,12 +85,15 @@ for itinerary in List_itineraries[1:]:
 
 
 for rr_pair in List_recapture_rate[1:]:
-    RR[rr_pair[0].value,rr_pair[1].value] = rr_pair[2].value
+    RR[rr_pair[0].value+1,rr_pair[1].value+1] = rr_pair[2].value
 
 for itin1 in P:
     for itin2 in P:
         if not (itin1.ID,itin2.ID) in RR:
             RR[itin1.ID,itin2.ID] = 0
+
+for itin1 in P:
+    RR[itin1.ID,0] = 1
 
 for aircraft in List_aircraft[1:]:
     if aircraft[0].value:
@@ -102,7 +107,7 @@ N = list(N)
 
 for i in L:
     for p in P:
-        if i.FN in p.Legs:
+        if i.FN in p.Legs:# or p.ID == 0:
             Delta[i.FN,p.ID] = 1
         else:
             Delta[i.FN,p.ID] = 0
@@ -110,7 +115,7 @@ for i in L:
 arc_id = 0
 for aircraft in K:
     for flight in L:
-        temp_time = flight.ArrTime + datetime.timedelta(minutes=aircraft.TAT)
+        temp_time = flight.ArrTime + timedelta(minutes=aircraft.TAT)
         Arcs[arc_id] = {'arc_type':flight.FN,'ac_type':aircraft.Type,'start_ap':flight.Origin,'end_ap':flight.Destination,'start_time':flight.DepTime,'end_time':temp_time.replace(day = 1)}
         arc_id += 1
 
@@ -169,6 +174,10 @@ for ac in K:
 print("")
 print(NGk)
 
+# for o in RR:       
+#     print(vars(o))
+
+print(RR)
 
 data = (L,P,N,K,RR,Arcs,Nodes,NGk, Delta)
 with open('input_data.pickle', 'wb') as file:
