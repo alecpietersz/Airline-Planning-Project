@@ -20,14 +20,10 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
 
         model = Model("IFAM_CG") # LP model (this is an object)
 
-        P_valid = set()
         # create decision variables
         t = {}
         for (itin1,itin2) in columns:            
             t[itin1.ID,itin2.ID] = model.addVar(obj=(itin1.Fare-RR[itin1.ID,itin2.ID]*itin2.Fare), vtype = 'I',name = f"t{itin1.ID}-{itin2.ID}")
-            P_valid.add(itin1)
-            P_valid.add(itin2)
-        P_valid = list(P_valid)
         
         f = {}
         for flight in L:
@@ -69,9 +65,9 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
                                             '>=', quicksum(Delta[flight.FN,itin3.ID]*itin3.Demand for itin3 in P), name = f"C4{flight.FN}")
 
         C5 = {}
-        for p in P_valid:
+        for p in P:
             sum = 0
-            for r in P_valid:
+            for r in P:
                 if (p.ID,r.ID) in columns:
                     sum+= t[p.ID,r.ID]
             C5[p.ID] = model.addLConstr(sum, '<=', p.Demand, name = f"C5{p.ID}")
@@ -100,7 +96,7 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
         print("START RELAXED ITERATION",count)
         exit_condition = True
         linear_relaxation = model.relax()
-        linear_relaxation.write(f"IFAM_CG_relaxed{count}.lp")
+        # linear_relaxation.write(f"IFAM_CG_relaxed{count}.lp")
         linear_relaxation.optimize()
 
         Pi = {}

@@ -22,15 +22,12 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, LF, LO, PO, solve):
 
         obj = LinExpr()
 
-        P_valid = set()
+        
         # create decision variables
         t = {}
         for (itin1,itin2) in columns:            
             t[itin1.ID,itin2.ID] = model.addVar(vtype = 'I',name = f"t{itin1.ID}-{itin2.ID}")
-            P_valid.add(itin1)
-            P_valid.add(itin2)
             obj += t[itin1.ID,itin2.ID]*(itin1.Fare-RR[itin1.ID,itin2.ID]*itin2.Fare)
-        P_valid = list(P_valid)
         
         f = {}
         for flight in L:
@@ -44,9 +41,9 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, LF, LO, PO, solve):
                 y[id,arc['ac_type']] = model.addVar(vtype='I',name = f"y{id}-{arc['ac_type']}")
 
         Z = {}
-        for itin in P_valid:
+        for itin in PO:
             Z[itin.ID] = model.addVar(vtype='B',name = f"Z{itin.ID}")
-            obj+= (1-Z[itin.ID])*
+            obj+= (1-Z[itin.ID])*itin.Demand*itin.Fare
 
         model.setObjective(obj,GRB.MINIMIZE)
         model.update()
@@ -54,8 +51,12 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, LF, LO, PO, solve):
         # generate constraints
 
         C1 = {}
-        for flight in L:
+        for flight in LF:
             C1[flight.FN] = model.addLConstr(quicksum(f[flight.FN,k.Type] for k in K),'=',1, name = f"C1{flight.FN}")
+
+        C1B = {}
+        for flight in LO:
+            C1B[flight.FN] = model.addLConstr(quicksum(f[flight.FN,k.Type] for k in K),'<=',1, name = f"C1{flight.FN}")
 
         C2 = {}
         for key, node in Nodes.items():
@@ -79,12 +80,21 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, LF, LO, PO, solve):
                                             '>=', quicksum(Delta[flight.FN,itin3.ID]*itin3.Demand for itin3 in P), name = f"C4{flight.FN}")
 
         C5 = {}
-        for p in P_valid:
+        for p in P:
             sum = 0
-            for r in P_valid:
+            for r in P:
                 if (p.ID,r.ID) in columns:
                     sum+= t[p.ID,r.ID]
             C5[p.ID] = model.addLConstr(sum, '<=', p.Demand, name = f"C5{p.ID}")
+
+        C6 = {}
+        for p in PO:
+            for leg in p.Legs:
+                C6[p.ID,leg] = model.addLConstr(Z[p.ID]-quicksum(f[leg,k.Type] for k in K),"<=",0, name = f"C6{p.ID}-{leg}")
+
+        C7 = {}
+        for p in PO:
+            C7[p.ID] = model.addLConstr(Z[p.ID]-quicksum(quicksum(f[leg,k.Type] for k in K) for leg in p.Legs),"=>",1-len(p.Legs),name=f"C7{p.ID}")
         
         model.update()
         model.write("IFAM_OP.lp")
@@ -110,7 +120,7 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, LF, LO, PO, solve):
         print("START RELAXED ITERATION",count)
         exit_condition = True
         linear_relaxation = model.relax()
-        linear_relaxation.write(f"IFAM_OP_relaxed{count}.lp")
+        # linear_relaxation.write(f"IFAM_OP_relaxed{count}.lp")
         linear_relaxation.optimize()
 
         Pi = {}
