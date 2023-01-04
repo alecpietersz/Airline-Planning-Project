@@ -183,4 +183,3 @@ with open('input_data.pickle', 'wb') as file:
     pickle.dump(data, file)
 
 
-
