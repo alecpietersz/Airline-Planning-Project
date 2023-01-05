@@ -92,18 +92,23 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
     exit_condition = False
 
     while exit_condition is False and count<100:
+        
         print("")
         print("START RELAXED ITERATION",count)
         exit_condition = True
         linear_relaxation = model.relax()
-        # linear_relaxation.write(f"IFAM_CG_relaxed{count}.lp")
+        it_start_time = time()
         linear_relaxation.optimize()
-
+        elapsed_time = time() - it_start_time
+        linear_relaxation.write(f"IFAM_CG_relaxed{count}.sol")
+        
         Pi = {}
         Sigma = {}        
         for c in linear_relaxation.getConstrs():
             if c.ConstrName[1] == '4':
                 Pi[c.ConstrName[2:]] = c.Pi
+                if int(c.Pi) != 0:
+                    print(f"{c.ConstrName[2:]}--{c.Pi}")
             elif c.ConstrName[1] == '5':
                 Sigma[int(c.ConstrName[2:])] = c.Pi
 
@@ -121,11 +126,17 @@ def IFAM_Problem (L,P,N,K,RR,Arcs,Nodes,NGk, Delta, solve):
         model = ConstructModel(columns)
 
         count+=1
+        
+
+        print (f"Run Time iteration{count} is {elapsed_time}")
 
     print("")
     print("SOLVE NON-RELAXED")
     model = ConstructModel(columns)
+    it_start_time = time()
     model.optimize()
+    elapsed_time = time() - it_start_time
+    print (f"Run Time iteration{count} is {elapsed_time}")
     model.write("IFAM_Final.sol") 
    
             
